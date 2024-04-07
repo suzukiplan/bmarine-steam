@@ -351,7 +351,7 @@ int main(int argc, char* argv[])
         auto start = std::chrono::system_clock::now();
         loopCount++;
         if (loopCount % 6 == 0) {
-            SteamAPI_RunCallbacks();
+            steam->runLoop();
         }
 
         // Keyboard Input (SDL2)

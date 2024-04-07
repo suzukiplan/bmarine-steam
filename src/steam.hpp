@@ -122,8 +122,18 @@ class CSteam
         this->callResultDownloadLeaderboardScore.Set(hdl, this, &CSteam::onDownloadLeaderboardScore);
     }
 
+    void runLoop()
+    {
+        if (initialized) {
+            SteamAPI_RunCallbacks();
+        }
+    }
+
     uint8_t getJoypad(bool* connected)
     {
+        if (!initialized) {
+            return 0;
+        }
         SteamInput()->RunFrame();
         InputHandle_t inputHandles[STEAM_INPUT_MAX_COUNT];
         int num = SteamInput()->GetConnectedControllers(inputHandles);
