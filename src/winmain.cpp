@@ -62,6 +62,7 @@ static void toggle_fullscreen();
 ATOM MyRegisterClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE, int);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK VirtualKeyboard(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK KeyConfigKeyboard(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK ScreenResolution(HWND, UINT, WPARAM, LPARAM);
@@ -112,7 +113,6 @@ static void putlog(const char* msg, ...)
     time_t t1;
     struct tm* t2;
 
-    CreateDirectoryA("save", nullptr);
     if (NULL == (fp = fopen("log.txt", "a"))) {
         return;
     }
@@ -124,6 +124,33 @@ static void putlog(const char* msg, ...)
     va_end(args);
     fprintf(fp, "\n");
     fclose(fp);
+}
+
+// セーブデータの変更検出（ここでSteamの実績解除やハイスコア登録を行う）
+static void check_save_changed(const unsigned char* data, size_t size)
+{
+    static const char* rankIds[27] = {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "W1", "W2", "W3", "W4", "W5", "O1", "O2", "O2+", "O3", "O4", "O5", "O6", "O7", "O8", "O9", "OA", "OB", "XX"};
+    if (size == 240 && 0 == memcmp(data, "BM#SCORE", 8)) {
+        // 獲得階級をチェックしてSteamへ報告
+        for (int i = 0; i < 27; i++) {
+            if (data[176 + i * 2] != _saveData[176 + i * 2]) {
+                unsigned short count;
+                memcpy(&count, &data[176 + i * 2], 2);
+                putlog("Rank %s = %d", rankIds[i], (int)count);
+                steam->unlock(rankIds[i]);
+            }
+        }
+        // ハイスコアをSteamへ報告
+        int newScore = 0;
+        for (int i = 0; i < 8; i++) {
+            newScore *= 10;
+            newScore += data[16 + (7 - i)];
+        }
+        newScore *= 10;
+        if (0 < newScore) {
+            steam->score(newScore);
+        }
+    }
 }
 
 static void save_config()
@@ -217,15 +244,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
+    CreateDirectoryA("save", nullptr);
     DeleteFileA("log.txt");
+    putlog("Launching Battle Marine for Windows");
 
     putlog("Loading config.json");
     reset_keyboard_assign();
     _windowX = CW_USEDEFAULT;
     _windowY = CW_USEDEFAULT;
-    _windowWidth = VRAM_WIDTH_HIGH;
-    _windowHeight = VRAM_HEIGHT_HIGH;
-    _isFullScreen = true;
+    _windowWidth = VRAM_WIDTH_LOW;
+    _windowHeight = VRAM_HEIGHT_LOW;
+    _isFullScreen = false;
     _isAspectFit = true;
     _resolution = Resolution::High;
     _volumeBgm = 100;
@@ -370,6 +399,10 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             return false;
         bool result = size == fwrite(data, 1, size, fp);
         fclose(fp);
+        if (result) {
+            check_save_changed((const unsigned char*)data, size & 0x3FFF);
+            memcpy(_saveData, data, size & 0x3FFF);
+        }
         return result;
     };
     vgs0.loadCallback = [](VGS0* vgs0, void* data, size_t size) -> bool {
@@ -588,7 +621,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     auto style = WS_OVERLAPPEDWINDOW;
     hWnd = CreateWindowA(
         "VGSZero",
-        "VGS-Zero",
+        "Battle Marine",
         style,
         _windowX,
         _windowY,
@@ -625,6 +658,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case WM_COMMAND: {
             int wmId = LOWORD(wParam);
             switch (wmId) {
+                case IDM_ABOUT:
+                    DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+                    break;
                 case IDM_RESET:
                     vgs0.reset();
                     break;
@@ -706,6 +742,23 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
+}
+
+INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+    UNREFERENCED_PARAMETER(lParam);
+    switch (message) {
+        case WM_INITDIALOG:
+            return (INT_PTR)TRUE;
+
+        case WM_COMMAND:
+            if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) {
+                EndDialog(hDlg, LOWORD(wParam));
+                return (INT_PTR)TRUE;
+            }
+            break;
+    }
+    return (INT_PTR)FALSE;
 }
 
 static std::string get_keyboard_string(unsigned char pad)

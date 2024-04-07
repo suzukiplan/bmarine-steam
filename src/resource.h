@@ -1,8 +1,6 @@
-﻿// VGS-Zero - SDK for Steam
+﻿﻿// VGS-Zero - SDK for Steam
 // License under GPLv3: https://github.com/suzukiplan/vgszero/blob/master/LICENSE-VGS0.txt
 // (C)2024, SUZUKI PLAN
-
-#define IDR_GAMEPKG 100
 #define IDS_APP_TITLE 103
 #define IDR_MAINFRAME 128
 #define IDD_VGSZERO_DIALOG 102
@@ -24,6 +22,15 @@
 #define IDC_MYICON 2
 #ifndef IDC_STATIC
 #define IDC_STATIC -1
+
+#define IDB_JOYPAD_A 200
+#define IDB_JOYPAD_B 201
+#define IDB_JOYPAD_START 202
+#define IDB_JOYPAD_SELECT 203
+#define IDB_JOYPAD_UP 204
+#define IDB_JOYPAD_DOWN 205
+#define IDB_JOYPAD_LEFT 206
+#define IDB_JOYPAD_RIGHT 207
 
 #define IDD_DIALOG_KEYCONFIG 2000
 #define IDC_BUTTON_A 2001
@@ -112,6 +119,7 @@
 #define IDC_SLIDER_SE 4203
 #define IDC_TEXT_BGM 4204
 #define IDC_TEXT_SE 4205
+#define IDM_SCANLINE 4300
 #endif
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
