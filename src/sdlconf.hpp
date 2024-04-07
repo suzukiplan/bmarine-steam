@@ -101,6 +101,7 @@ public:
         soundJson.insert(std::make_pair("volumeSe", picojson::value((double)sound.volumeSe)));
         o.insert(std::make_pair("sound", soundJson));
 
+        keyboardJson.insert(std::make_pair("#hint", picojson::value("SDLKeycodeLookup")));        
         keyboardJson.insert(std::make_pair("up", picojson::value(toString(keyboard.up))));
         keyboardJson.insert(std::make_pair("down", picojson::value(toString(keyboard.down))));
         keyboardJson.insert(std::make_pair("left", picojson::value(toString(keyboard.left))));
