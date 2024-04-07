@@ -93,6 +93,8 @@ but if you have a Raspberry Pi Zero 2W you can try the Raspberry Pi version for 
 If you like the Raspberry Pi version, please consider purchasing the Steam version.
 https://github.com/suzukiplan/bmarine-zero
 
+> We have a policy of NOT ISSUING ANY FREE KEYS for Steam since we are giving away the RasPi version for FREE.
+
 Video distribution, etc.
 
 There are no restrictions on the distribution of this game on TV, YouTube, or other video distribution sites.
