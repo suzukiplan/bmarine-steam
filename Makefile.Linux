@@ -1,5 +1,6 @@
 CFLAGS = -O2
 CFLAGS += -pie
+CFLAGS += -static-libgcc -static-libstdc++ -ftls-model=global-dynamic
 CFLAGS += -I/usr/include/SDL2
 CFLAGS += -I/usr/local/include/SDL2
 CFLAGS += -I/opt/X11/include
@@ -35,7 +36,7 @@ OBJECTS += err_joypad.o
 all: game steam_appid.txt libsteam_api.so
 	-@rm -rf release
 	mkdir release
-	cp -p game release
+	cp -p game release/bmarine
 	cp -p libsteam_api.so release
 	cp -p LICENSE*.txt release
 	cp -p README.txt release

@@ -1,5 +1,7 @@
+EXENAME = bmarine
 CFLAGS = -O2
 CFLAGS += -pie
+CFLAGS += -static-libgcc -static-libstdc++ -ftls-model=global-dynamic
 CFLAGS += -I/usr/include/SDL2
 CFLAGS += -I/usr/local/include/SDL2
 CFLAGS += -I/opt/X11/include
@@ -32,24 +34,24 @@ OBJECTS += vgs0math.o
 OBJECTS += gamepkg.o
 OBJECTS += err_joypad.o
 
-all: game steam_appid.txt libsteam_api.dylib
+all: $(EXENAME) steam_appid.txt libsteam_api.dylib
 	-@rm -rf release
 	mkdir release
-	cp -p game release
+	cp -p $(EXENAME) release
 	cp -p libsteam_api.dylib release
 	cp -p LICENSE*.txt release
 	cp -p README.txt release
-	./game
+	./$(EXENAME)
 
 clean:
 	rm -f $(OBJECTS)
-	rm -f game
+	rm -f $(EXENAME)
 
 libsteam_api.dylib: ./sdk/redistributable_bin/osx/libsteam_api.dylib
 	cp -p $< .
 
-game: $(OBJECTS) libsteam_api.dylib
-	$(CPP) -o game $(OBJECTS) -Wl,-rpath,. -lSDL2 -L. -lsteam_api
+$(EXENAME): $(OBJECTS) libsteam_api.dylib
+	$(CPP) -o $(EXENAME) $(OBJECTS) -Wl,-rpath,. -lSDL2 -L. -lsteam_api
 
 sdlmain.o: ./src/sdlmain.cpp $(HEADER_FILES) ./Makefile.Darwin
 	$(CPP) -c $<

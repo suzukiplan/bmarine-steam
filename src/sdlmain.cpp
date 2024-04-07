@@ -32,6 +32,7 @@ extern "C" {
 static pthread_mutex_t soundMutex = PTHREAD_MUTEX_INITIALIZER;
 static bool halt = false;
 static CSteam* steam = nullptr;
+static VGS0 vgs0;
 
 void log(const char* format, ...)
 {
@@ -73,6 +74,34 @@ static inline unsigned char bit5To8(unsigned char bit5)
     bit5 <<= 3;
     bit5 |= (bit5 & 0b11100000) >> 5;
     return bit5;
+}
+
+// セーブデータの変更検出（ここでSteamの実績解除やハイスコア登録を行う）
+static unsigned char _saveData[16384];
+static void check_save_changed(const unsigned char* data, size_t size)
+{
+    static const char* rankIds[27] = {"E1", "E2", "E3", "E4", "E5", "E6", "E7", "E8", "E9", "W1", "W2", "W3", "W4", "W5", "O1", "O2", "O2+", "O3", "O4", "O5", "O6", "O7", "O8", "O9", "OA", "OB", "XX"};
+    if (size == 240 && 0 == memcmp(data, "BM#SCORE", 8)) {
+        // 獲得階級をチェックしてSteamへ報告
+        for (int i = 0; i < 27; i++) {
+            if (data[176 + i * 2] != _saveData[176 + i * 2]) {
+                unsigned short count;
+                memcpy(&count, &data[176 + i * 2], 2);
+                log("Rank %s = %d", rankIds[i], (int)count);
+                steam->unlock(rankIds[i]);
+            }
+        }
+        // ハイスコアをSteamへ報告
+        int newScore = 0;
+        for (int i = 0; i < 8; i++) {
+            newScore *= 10;
+            newScore += data[16 + (7 - i)];
+        }
+        newScore *= 10;
+        if (0 < newScore) {
+            steam->score(newScore);
+        }
+    }
 }
 
 int main(int argc, char* argv[])
@@ -131,6 +160,28 @@ int main(int argc, char* argv[])
     Config cfg;
 
     steam = new CSteam(log);
+    steam->downloadLeaderboardScore = [](std::vector<CSteam::FriendScoreRecord*>* ranking) {
+        int ptr = 0xD000 & 0x3FFF;
+        int idx = 0;
+        for (auto data : *ranking) {
+            if (data->globalRank < 100000) {
+                sprintf((char*)&vgs0.ctx.ram[ptr], "%5d ", data->globalRank);
+            } else {
+                sprintf((char*)&vgs0.ctx.ram[ptr], "100K+ ");
+            }
+            ptr += 6;
+            sprintf((char*)&vgs0.ctx.ram[ptr], "%9d %s", data->score, data->name);
+            ptr += 26;
+            idx++;
+            if (10 <= idx) {
+                break;
+            }
+        }
+        for (; idx < 10; idx++) {
+            sprintf((char*)&vgs0.ctx.ram[ptr], "***** ********* ************");
+            ptr += 32;
+        }
+    };
     steam->init();
 
     log("Initializing SDL");
@@ -219,7 +270,6 @@ int main(int argc, char* argv[])
     se = 0 < seSize ? ptr : nullptr;
     printf("- se.dat size: %d\n", seSize);
 
-    VGS0 vgs0;
     if (0 < bgmSize) {
         vgs0.loadBgm(bgm, bgmSize);
     }
@@ -244,6 +294,8 @@ int main(int argc, char* argv[])
             return false;
         }
         fclose(fp);
+        check_save_changed((const unsigned char*)data, size);
+        memcpy(_saveData, data, size);
         return true;
     };
 
@@ -260,6 +312,7 @@ int main(int argc, char* argv[])
             memset(&((char*)data)[readSize], 0, size - readSize);
         }
         fclose(fp);
+        memcpy(_saveData, data, readSize);
         return true;
     };
 
