@@ -1,6 +1,8 @@
 ﻿// VGS-Zero - SDK for Steam
 // License under GPLv3: https://github.com/suzukiplan/vgszero/blob/master/LICENSE-VGS0.txt
 // (C)2024, SUZUKI PLAN
+
+#define IDR_GAMEPKG 100
 #define IDS_APP_TITLE 103
 #define IDR_MAINFRAME 128
 #define IDD_VGSZERO_DIALOG 102

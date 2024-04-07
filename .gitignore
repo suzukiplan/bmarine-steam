@@ -19,6 +19,10 @@ steam_appid.txt
 release
 sdk/public
 sdk/redistributable_bin
+sdk/Readme.txt
+sdk/glmgr
+sdk/steamworksexample
+sdk/tools
 src/gamepkg.c
 src/gamepkg.h
 src/err_joypad.c
