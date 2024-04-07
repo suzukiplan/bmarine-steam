@@ -15,10 +15,9 @@
 			}
 			"Button"
 			{
-				"A"					"#Action_A"
-				"B"					"#Action_B"
-				"Start"				"#Action_Start"
-				"Select"			"#Action_Select"
+				"fire"				"#Action_Fire"
+				"jump"				"#Action_Jump"
+				"pause"				"#Action_Pause"
 			}
 		}
 	}
@@ -28,10 +27,17 @@
 		{
 			"Set_Ingame"			"In-Game Controls"
 			"Action_Move"			"Movement"
-			"Action_A"				"A button"
-			"Action_B"				"B button"
-			"Action_Start"			"Start button"
-			"Action_Select"			"Select button"
+			"Action_Pause"			"Pause"
+			"Action_Fire"			"Fire Weapon"
+			"Action_Jump"			"Jump"
+		}
+		"japanese"
+		{
+			"Set_Ingame"			"ゲーム操作"
+			"Action_Move"			"移動"
+			"Action_Pause"			"ポーズ"
+			"Action_Fire"			"ショット発射"
+			"Action_Jump"			"ジャンプ"
 		}
 	}
 }
