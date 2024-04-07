@@ -93,6 +93,13 @@ but if you have a Raspberry Pi Zero 2W you can try the Raspberry Pi version for 
 If you like the Raspberry Pi version, please consider purchasing the Steam version.
 https://github.com/suzukiplan/bmarine-zero
 
+Video distribution, etc.
+
+There are no restrictions on the distribution of this game on TV, YouTube, or other video distribution sites.
+Of course, there are no restrictions on monetization.
+There is no need to contact the author prior to or after the event.
+Similarly, there are no restrictions on publishing screenshots in magazines, web media, social media, etc.
+
 Contact us
 
 1. Twitter: https://twitter.com/suzukiplan
