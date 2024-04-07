@@ -105,7 +105,7 @@ Similarly, there are no restrictions on publishing screenshots in magazines, web
 Contact us
 
 1. Twitter: https://twitter.com/suzukiplan
-2. GitHub: https://github.com/suzukiplan/bmarine-steam/issues
+2. GitHub: https://github.com/suzukiplan/bmarine-zero/issues
 
 Licenses
 
