@@ -108,7 +108,7 @@ int main(int argc, char* argv[])
 {
     unlink("log.txt");
     bool cliError = false;
-    int gpuType = SDL_WINDOW_OPENGL;
+    int gpuFlags = 0;
 
     for (int i = 1; !cliError && i < argc; i++) {
         switch (tolower(argv[i][1])) {
@@ -119,15 +119,15 @@ int main(int argc, char* argv[])
                     break;
                 }
                 if (0 == strcasecmp(argv[i], "OpenGL")) {
-                    gpuType = SDL_WINDOW_OPENGL;
+                    gpuFlags = SDL_WINDOW_OPENGL;
                 } else if (0 == strcasecmp(argv[i], "Vulkan")) {
-                    gpuType = SDL_WINDOW_VULKAN;
+                    gpuFlags = SDL_WINDOW_VULKAN;
 #ifdef DARWIN
                 } else if (0 == strcasecmp(argv[i], "Metal")) {
-                    gpuType = SDL_WINDOW_METAL;
+                    gpuFlags = SDL_WINDOW_METAL;
 #endif
                 } else if (0 == strcasecmp(argv[i], "None")) {
-                    gpuType = 0;
+                    gpuFlags = 0;
                 }
                 break;
             case 'h':
@@ -139,12 +139,13 @@ int main(int argc, char* argv[])
         }
     }
 #ifdef DARWIN
-    gpuType |= SDL_WINDOW_ALLOW_HIGHDPI;
+    gpuFlags |= SDL_WINDOW_ALLOW_HIGHDPI;
 #endif
 
     if (cliError) {
-        puts("usage: bmarine [-g { None .............. GPU: Do not use");
-        puts("                   | OpenGL ............ GPU: OpenGL <default>");
+        puts("usage: bmarine [-g { Auto .............. GPU: Auto detection <default>");
+        puts("                   | None .............. GPU: Do not use");
+        puts("                   | OpenGL ............ GPU: OpenGL");
         puts("                   | Vulkan ............ GPU: Vulkan");
 #ifdef DARWIN
         puts("                   | Metal ............. GPU: Metal");
@@ -199,11 +200,11 @@ int main(int argc, char* argv[])
     SDL_Window* window;
     SDL_Renderer* renderer;
     if (cfg.graphic.isFullScreen) {
-        gpuType |= SDL_WINDOW_FULLSCREEN;
+        gpuFlags |= SDL_WINDOW_FULLSCREEN;
     }
     if (0 !=SDL_CreateWindowAndRenderer(cfg.graphic.isFullScreen ? display.w : cfg.graphic.windowWidth,
                                         cfg.graphic.isFullScreen ? display.h : cfg.graphic.windowHeight,
-                                        gpuType,
+                                        gpuFlags,
                                         &window,
                                         &renderer)) {
         log("SDL_CreateWindowAndRenderer failed: %s", SDL_GetError());
