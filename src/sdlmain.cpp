@@ -187,7 +187,7 @@ int main(int argc, char* argv[])
         }
     };
     if (!steam->init()) {
-//        return -1;
+        return -1;
     }
 
     log("Initializing SDL");
