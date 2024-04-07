@@ -2,6 +2,7 @@
 .vscode
 *.o
 *.obj
+bmarine
 game
 GAME.exe
 GAME.exe.manifest

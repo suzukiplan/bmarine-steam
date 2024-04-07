@@ -1,3 +1,4 @@
+EXENAME = bmarine
 CFLAGS = -O2
 CFLAGS += -pie
 CFLAGS += -static-libgcc -static-libstdc++ -ftls-model=global-dynamic
@@ -33,24 +34,24 @@ OBJECTS += vgs0math.o
 OBJECTS += gamepkg.o
 OBJECTS += err_joypad.o
 
-all: game steam_appid.txt libsteam_api.so
+all: $(EXENAME) steam_appid.txt libsteam_api.so
 	-@rm -rf release
 	mkdir release
-	cp -p game release/bmarine
+	cp -p $(EXENAME) release
 	cp -p libsteam_api.so release
 	cp -p LICENSE*.txt release
 	cp -p README.txt release
-	./game
+	./$(EXENAME)
 
 clean:
 	rm -f $(OBJECTS)
-	rm -f game
+	rm -f $(EXENAME)
 
 libsteam_api.so: ./sdk/redistributable_bin/linux64/libsteam_api.so
 	cp -p $< .
 
-game: $(OBJECTS) libsteam_api.so
-	$(CPP) -o game $(OBJECTS) -Wl,-rpath,. -lSDL2 -L. -lsteam_api
+$(EXENAME): $(OBJECTS) libsteam_api.so
+	$(CPP) -o $(EXENAME) $(OBJECTS) -Wl,-rpath,. -lSDL2 -L. -lsteam_api
 
 sdlmain.o: ./src/sdlmain.cpp $(HEADER_FILES) ./Makefile.Linux
 	$(CPP) -c $<
