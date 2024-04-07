@@ -182,7 +182,9 @@ int main(int argc, char* argv[])
             ptr += 32;
         }
     };
-    steam->init();
+    if (!steam->init()) {
+        return -1;
+    }
 
     log("Initializing SDL");
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {

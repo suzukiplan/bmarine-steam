@@ -66,7 +66,7 @@ class CSteam
         }
     }
 
-    void init()
+    bool init()
     {
         putlog("Initializing Steam...");
         if (!SteamAPI_Init()) {
@@ -84,6 +84,7 @@ class CSteam
                 putlog("SteamInput::Init failed!");
             }
         }
+        return this->initialized;
     }
 
     void unlock(const char* name)
