@@ -109,6 +109,7 @@ int main(int argc, char* argv[])
     unlink("log.txt");
     bool cliError = false;
     int gpuFlags = 0;
+    int gpuType = 0;
 
     for (int i = 1; !cliError && i < argc; i++) {
         switch (tolower(argv[i][1])) {
@@ -119,15 +120,17 @@ int main(int argc, char* argv[])
                     break;
                 }
                 if (0 == strcasecmp(argv[i], "OpenGL")) {
-                    gpuFlags = SDL_WINDOW_OPENGL;
+                    gpuType = SDL_WINDOW_OPENGL;
                 } else if (0 == strcasecmp(argv[i], "Vulkan")) {
-                    gpuFlags = SDL_WINDOW_VULKAN;
+                    gpuType = SDL_WINDOW_VULKAN;
 #ifdef DARWIN
                 } else if (0 == strcasecmp(argv[i], "Metal")) {
-                    gpuFlags = SDL_WINDOW_METAL;
+                    gpuType = SDL_WINDOW_METAL;
 #endif
+                } else if (0 == strcasecmp(argv[i], "Auto")) {
+                    gpuType = 0;
                 } else if (0 == strcasecmp(argv[i], "None")) {
-                    gpuFlags = 0;
+                    gpuType = -1;
                 }
                 break;
             case 'h':
@@ -184,7 +187,7 @@ int main(int argc, char* argv[])
         }
     };
     if (!steam->init()) {
-        return -1;
+//        return -1;
     }
 
     log("Initializing SDL");
@@ -202,13 +205,47 @@ int main(int argc, char* argv[])
     if (cfg.graphic.isFullScreen) {
         gpuFlags |= SDL_WINDOW_FULLSCREEN;
     }
-    if (0 !=SDL_CreateWindowAndRenderer(cfg.graphic.isFullScreen ? display.w : cfg.graphic.windowWidth,
-                                        cfg.graphic.isFullScreen ? display.h : cfg.graphic.windowHeight,
-                                        gpuFlags,
-                                        &window,
-                                        &renderer)) {
-        log("SDL_CreateWindowAndRenderer failed: %s", SDL_GetError());
-        exit(-1);
+    if (0 == gpuType) {
+#ifdef DARWIN
+        gpuType = SDL_WINDOW_METAL;
+#else
+        gpuType = SDL_WINDOW_VULKAN;
+#endif
+        if (0 !=SDL_CreateWindowAndRenderer(cfg.graphic.isFullScreen ? display.w : cfg.graphic.windowWidth,
+                                            cfg.graphic.isFullScreen ? display.h : cfg.graphic.windowHeight,
+                                            gpuType | gpuFlags,
+                                            &window,
+                                            &renderer)) {
+            gpuType = SDL_WINDOW_OPENGL;
+            if (0 !=SDL_CreateWindowAndRenderer(cfg.graphic.isFullScreen ? display.w : cfg.graphic.windowWidth,
+                                                cfg.graphic.isFullScreen ? display.h : cfg.graphic.windowHeight,
+                                                gpuType | gpuFlags,
+                                                &window,
+                                                &renderer)) {
+                log("SDL_CreateWindowAndRenderer failed: %s", SDL_GetError());
+                exit(-1);
+            }
+        }
+    } else {
+        if (-1 == gpuType) {
+            gpuType = 0;
+        }
+        if (0 !=SDL_CreateWindowAndRenderer(cfg.graphic.isFullScreen ? display.w : cfg.graphic.windowWidth,
+                                            cfg.graphic.isFullScreen ? display.h : cfg.graphic.windowHeight,
+                                            gpuType | gpuFlags,
+                                            &window,
+                                            &renderer)) {
+            log("SDL_CreateWindowAndRenderer failed: %s", SDL_GetError());
+            exit(-1);
+        }
+    }
+    switch (gpuType) {
+        case 0: log("GPU Type: n/a (software rendering)"); break;
+        case SDL_WINDOW_OPENGL: log("GPU Type: OpenGL"); break;
+#ifdef DARWin
+        case SDL_WINDOW_METAL: log("GPU Type: Metal"); break;
+#endif
+        case SDL_WINDOW_VULKAN: log("GPU Type: Vulkan"); break;
     }
     SDL_SetRenderDrawColor(renderer, 0, 0, 0, SDL_ALPHA_OPAQUE);
     SDL_RenderClear(renderer);
