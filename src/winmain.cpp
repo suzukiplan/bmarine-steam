@@ -77,6 +77,7 @@ enum class Resolution {
 static HINSTANCE hInst;
 static bool _isFullScreen;
 static bool _isAspectFit;
+static bool _isScanline;
 static Resolution _resolution;
 static int _windowX;
 static int _windowY;
@@ -166,6 +167,7 @@ static void save_config()
     basic.insert(std::make_pair("windowHeight", picojson::value((double)_windowHeight)));
     basic.insert(std::make_pair("isFullScreen", picojson::value(_isFullScreen)));
     basic.insert(std::make_pair("isAspectFit", picojson::value(_isAspectFit)));
+    basic.insert(std::make_pair("isScanline", picojson::value(_isScanline)));
     basic.insert(std::make_pair("volumeBgm", picojson::value((double)_volumeBgm)));
     basic.insert(std::make_pair("volumeSe", picojson::value((double)_volumeSe)));
     switch (_resolution) {
@@ -217,12 +219,6 @@ static void extract_key_config(std::vector<KeyConfig*>& config, picojson::array&
             case KeyConfig::Type::Button:
                 newConfig = KeyConfig::makeButton(pad, (int)cfg.get("button").get<double>());
                 break;
-            case KeyConfig::Type::LeftTrigger:
-                newConfig = KeyConfig::makeLeftTrigger(pad);
-                break;
-            case KeyConfig::Type::RightTrigger:
-                newConfig = KeyConfig::makeRightTrigger(pad);
-                break;
             case KeyConfig::Type::Axis: {
                 auto axisType = KeyConfig::toAxisType(cfg.get("axisType").get<std::string>());
                 auto compare = (int)cfg.get("compare").get<double>();
@@ -256,6 +252,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     _windowHeight = VRAM_HEIGHT_HIGH;
     _isFullScreen = false;
     _isAspectFit = true;
+    _isScanline = true;
     _resolution = Resolution::High;
     _volumeBgm = 100;
     _volumeSe = 100;
@@ -303,6 +300,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
             if (basic.find("isAspectFit")->second.is<bool>()) {
                 _isAspectFit = basic["isAspectFit"].get<bool>();
             }
+            if (basic.find("isScanline")->second.is<bool>()) {
+                _isScanline = basic["isScanline"].get<bool>();
+            }
             if (basic.find("resolution")->second.is<std::string>()) {
                 const char* res = basic["resolution"].get<std::string>().c_str();
                 if (0 == strncmp(res, "low", 3)) {
@@ -348,6 +348,28 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     }
 
     steam = new CSteam(putlog);
+    steam->downloadLeaderboardScore = [](std::vector<CSteam::FriendScoreRecord*>* ranking) {
+        int ptr = 0xD000 & 0x3FFF;
+        int idx = 0;
+        for (auto data : *ranking) {
+            if (data->globalRank < 100000) {
+                sprintf((char*)&vgs0.ctx.ram[ptr], "%5d ", data->globalRank);
+            } else {
+                sprintf((char*)&vgs0.ctx.ram[ptr], "100K+ ");
+            }
+            ptr += 6;
+            sprintf((char*)&vgs0.ctx.ram[ptr], "%9d %s", data->score, data->name);
+            ptr += 26;
+            idx++;
+            if (10 <= idx) {
+                break;
+            }
+        }
+        for (; idx < 10; idx++) {
+            sprintf((char*)&vgs0.ctx.ram[ptr], "***** ********* ************");
+            ptr += 32;
+        }
+    };
     if (!steam->init()) {
         exit(-1);
     }
@@ -589,6 +611,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     return (int)msg.wParam;
 }
 
+//
+//  関数: MyRegisterClass()
+//
+//  目的: ウィンドウ クラスを登録します。
+//
 ATOM MyRegisterClass(HINSTANCE hInstance)
 {
     /* disable IME */
@@ -617,6 +644,16 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     return TRUE;
 }
 
+//
+//   関数: InitInstance(HINSTANCE, int)
+//
+//   目的: インスタンス ハンドルを保存して、メイン ウィンドウを作成します
+//
+//   コメント:
+//
+//        この関数で、グローバル変数でインスタンス ハンドルを保存し、
+//        メイン プログラム ウィンドウを作成および表示します。
+//
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
     hInst = hInstance; // グローバル変数にインスタンス ハンドルを格納する
@@ -654,11 +691,22 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     return TRUE;
 }
 
+//
+//  関数: WndProc(HWND, UINT, WPARAM, LPARAM)
+//
+//  目的: メイン ウィンドウのメッセージを処理します。
+//
+//  WM_COMMAND  - アプリケーション メニューの処理
+//  WM_PAINT    - メイン ウィンドウを描画する
+//  WM_DESTROY  - 中止メッセージを表示して戻る
+//
+//
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message) {
         case WM_COMMAND: {
             int wmId = LOWORD(wParam);
+            // 選択されたメニューの解析:
             switch (wmId) {
                 case IDM_ABOUT:
                     DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
@@ -676,6 +724,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     _isAspectFit = !_isAspectFit;
                     _lpDev->ColorFill(_lpBuf, nullptr, 0);
                     _lpDev->Present(nullptr, nullptr, hWnd, nullptr);
+                    break;
+                case IDM_SCANLINE:
+                    _isScanline = !_isScanline;
                     break;
                 case IDM_KEYBOARD:
                     if (_isFullScreen) {
@@ -746,6 +797,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
+// バージョン情報ボックスのメッセージ ハンドラーです。
 INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     UNREFERENCED_PARAMETER(lParam);
@@ -1324,6 +1376,9 @@ static void vtrans(int pitch, int* ptr)
 
     p = 0;
     unsigned short* display = vgs0.getDisplay();
+    unsigned int maskR = _isScanline ? 0xFFF0F0F0 : 0xFFFFFFFF;
+    unsigned int maskB = _isScanline ? 0x8F8F8F8F : 0xFFFFFFFF;
+    unsigned int maskBR = _isScanline ? 0x80808080 : 0xFFFFFFFF;
     switch (_resolution) {
         case Resolution::High:
             for (vy = 0; vy < VRAM_HEIGHT_HIGH; vy += 4) {
@@ -1331,12 +1386,12 @@ static void vtrans(int pitch, int* ptr)
                     auto offset = vy * pitch + vx;
                     ptr[offset] = rgb555_to_888(*display);
                     ptr[offset + 1] = ptr[offset];
-                    ptr[offset + 2] = ptr[offset] & 0xFFF0F0F0;
+                    ptr[offset + 2] = ptr[offset] & maskR;
                     ptr[offset + 3] = ptr[offset + 2];
-                    ptr[offset + pitch * 2] = ptr[offset] & 0x8F8F8F8F;
-                    ptr[offset + pitch * 2 + 1] = ptr[offset] & 0x8F8F8F8F;
-                    ptr[offset + pitch * 2 + 2] = ptr[offset] & 0x80808080;
-                    ptr[offset + pitch * 2 + 3] = ptr[offset] & 0x80808080;
+                    ptr[offset + pitch * 2] = ptr[offset] & maskB;
+                    ptr[offset + pitch * 2 + 1] = ptr[offset] & maskB;
+                    ptr[offset + pitch * 2 + 2] = ptr[offset] & maskBR;
+                    ptr[offset + pitch * 2 + 3] = ptr[offset] & maskBR;
                     display++;
                 }
                 auto offset = vy * pitch;
@@ -1349,9 +1404,9 @@ static void vtrans(int pitch, int* ptr)
                 for (vx = 0; vx < VRAM_WIDTH_LOW; vx += 2) {
                     auto offset = vy * pitch + vx;
                     ptr[offset] = rgb555_to_888(*display);
-                    ptr[offset + 1] = ptr[offset] & 0xFFF0F0F0;
-                    ptr[offset + pitch] = ptr[offset] & 0x8F8F8F8F;
-                    ptr[offset + pitch + 1] = ptr[offset] & 0x80808080;
+                    ptr[offset + 1] = ptr[offset] & maskR;
+                    ptr[offset + pitch] = ptr[offset] & maskB;
+                    ptr[offset + pitch + 1] = ptr[offset] & maskBR;
                     display++;
                 }
             }

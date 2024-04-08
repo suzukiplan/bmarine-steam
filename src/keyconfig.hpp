@@ -17,8 +17,6 @@ class KeyConfig
     enum class Type {
         Unknown,
         Button,
-        LeftTrigger,
-        RightTrigger,
         Axis,
     };
 
@@ -77,8 +75,6 @@ class KeyConfig
     {
         switch (type) {
             case Type::Button: return "Button";
-            case Type::LeftTrigger: return "LeftTrigger";
-            case Type::RightTrigger: return "RightTrigger";
             case Type::Axis: return "Axis";
             default: return "Unknown";
         }
@@ -99,10 +95,6 @@ class KeyConfig
     {
         if (0 == _stricmp(str.c_str(), "Button")) {
             return Type::Button;
-        } else if (0 == _stricmp(str.c_str(), "LeftTrigger")) {
-            return Type::LeftTrigger;
-        } else if (0 == _stricmp(str.c_str(), "RightTrigger")) {
-            return Type::RightTrigger;
         } else if (0 == _stricmp(str.c_str(), "Axis")) {
             return Type::Axis;
         } else {
@@ -128,16 +120,6 @@ class KeyConfig
     static KeyConfig* makeButton(unsigned char pad, int button)
     {
         return new KeyConfig(pad, button);
-    }
-
-    static KeyConfig* makeLeftTrigger(unsigned char pad)
-    {
-        return new KeyConfig(pad, Type::LeftTrigger);
-    }
-
-    static KeyConfig* makeRightTrigger(unsigned char pad)
-    {
-        return new KeyConfig(pad, Type::RightTrigger);
     }
 
     static KeyConfig* makeAxis(unsigned char pad, AxisType axisType, int compareValue)
@@ -173,66 +155,6 @@ class KeyConfig
         this->axisType = axisType;
         this->isLessThan = isLessThan;
         this->compareValue = compareValue;
-    }
-
-    inline unsigned char check(XINPUT_STATE* st)
-    {
-        switch (this->type) {
-            case Type::Button:
-                return st->Gamepad.wButtons & this->buttonMask ? this->pad : 0;
-            case Type::LeftTrigger:
-                return st->Gamepad.bLeftTrigger ? this->pad : 0;
-            case Type::RightTrigger:
-                return st->Gamepad.bRightTrigger ? this->pad : 0;
-            case Type::Axis: {
-                short thumb = 0;
-                switch (this->axisType) {
-                    case AxisType::LeftX: thumb = st->Gamepad.sThumbLX; break;
-                    case AxisType::LeftY: thumb = st->Gamepad.sThumbLY; break;
-                    case AxisType::RightX: thumb = st->Gamepad.sThumbRX; break;
-                    case AxisType::RightY: thumb = st->Gamepad.sThumbRY; break;
-                }
-                if (this->isLessThan) {
-                    if (thumb < this->compareValue) {
-                        return this->pad;
-                    }
-                } else {
-                    if (thumb > this->compareValue) {
-                        return this->pad;
-                    }
-                }
-                break;
-            }
-        }
-        return 0;
-    }
-
-    inline unsigned char check(DIJOYSTATE* st)
-    {
-        switch (this->type) {
-            case Type::Button:
-                return st->rgbButtons[this->buttonMask & 0x1F] ? this->pad : 0;
-            case Type::Axis: {
-                LONG thumb = 0;
-                switch (this->axisType) {
-                    case AxisType::LeftX: thumb = st->lX; break;
-                    case AxisType::LeftY: thumb = st->lY; break;
-                    case AxisType::RightX: thumb = st->lRx; break;
-                    case AxisType::RightY: thumb = st->lRy; break;
-                }
-                if (this->isLessThan) {
-                    if (thumb < this->compareValue) {
-                        return this->pad;
-                    }
-                } else {
-                    if (thumb > this->compareValue) {
-                        return this->pad;
-                    }
-                }
-                break;
-            }
-        }
-        return 0;
     }
 
     inline unsigned char check(BYTE* st)
