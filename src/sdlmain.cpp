@@ -386,6 +386,7 @@ int main(int argc, char* argv[])
     bool joypadConnectedPrev = false;
     bool detectJoypadDisconnected = false;
     unsigned char key1 = 0;
+    bool key1AutoB = false;
 
     while (!halt) {
         auto start = std::chrono::system_clock::now();
@@ -420,6 +421,9 @@ int main(int argc, char* argv[])
                 if (cfg.keyboard.b == event.key.keysym.sym) {
                     key1 |= VGS0_JOYPAD_T2;
                 }
+                if (cfg.keyboard.autoB == event.key.keysym.sym) {
+                    key1AutoB = true;
+                }
                 if (cfg.keyboard.start == event.key.keysym.sym) {
                     key1 |= VGS0_JOYPAD_ST;
                 }
@@ -448,6 +452,9 @@ int main(int argc, char* argv[])
                 }
                 if (cfg.keyboard.b == event.key.keysym.sym) {
                     key1 ^= VGS0_JOYPAD_T2;
+                }
+                if (cfg.keyboard.autoB == event.key.keysym.sym) {
+                    key1AutoB = false;
                 }
                 if (cfg.keyboard.start == event.key.keysym.sym) {
                     key1 ^= VGS0_JOYPAD_ST;
@@ -496,7 +503,12 @@ int main(int argc, char* argv[])
         // execute emulator 1 frame
         if (!steam->isOverlay()) {
             pthread_mutex_lock(&soundMutex);
-            vgs0.tick(key1 | pad1);
+            if (key1AutoB) {
+                int b = loopCount % 6 < 3 ? VGS0_JOYPAD_T2 : 0;
+                vgs0.tick(key1 | pad1 | b);
+            } else {
+                vgs0.tick(key1 | pad1);
+            }
             pthread_mutex_unlock(&soundMutex);
             if (vgs0.cpu->reg.IFF & 0x80) {
                 if (0 == (vgs0.cpu->reg.IFF & 0x01)) {

@@ -34,6 +34,7 @@ public:
         int right;
         int a;
         int b;
+        int autoB;
         int select;
         int start;
         int reset;
@@ -56,6 +57,7 @@ public:
         keyboard.start = SDLK_SPACE;
         keyboard.b = SDLK_z;
         keyboard.a = SDLK_x;
+        keyboard.autoB = SDLK_c;
         keyboard.reset = SDLK_r;
         keyboard.quit = SDLK_q;
         load();
@@ -76,6 +78,7 @@ public:
         log("- keyboard.right: 0x%X", keyboard.right);
         log("- keyboard.a: 0x%X", keyboard.a);
         log("- keyboard.b: 0x%X", keyboard.b);
+        log("- keyboard.autoB: 0x%X", keyboard.autoB);
         log("- keyboard.start: 0x%X", keyboard.start);
         log("- keyboard.select: 0x%X", keyboard.select);
         log("- keyboard.reset: 0x%X", keyboard.reset);
@@ -108,6 +111,7 @@ public:
         keyboardJson.insert(std::make_pair("right", picojson::value(toString(keyboard.right))));
         keyboardJson.insert(std::make_pair("a", picojson::value(toString(keyboard.a))));
         keyboardJson.insert(std::make_pair("b", picojson::value(toString(keyboard.b))));
+        keyboardJson.insert(std::make_pair("autoB", picojson::value(toString(keyboard.autoB))));
         keyboardJson.insert(std::make_pair("start", picojson::value(toString(keyboard.start))));
         keyboardJson.insert(std::make_pair("select", picojson::value(toString(keyboard.select))));
         keyboardJson.insert(std::make_pair("reset", picojson::value(toString(keyboard.reset))));
@@ -266,6 +270,12 @@ public:
             keyboard.b = (int)keyboardJson["b"].get<double>();
         } else if (keyboardJson.find("b")->second.is<std::string>()) {
             keyboard.b = toKeyCode(keyboardJson["b"].get<std::string>().c_str());
+        }
+
+        if (keyboardJson.find("autoB")->second.is<double>()) {
+            keyboard.autoB = (int)keyboardJson["autoB"].get<double>();
+        } else if (keyboardJson.find("autoB")->second.is<std::string>()) {
+            keyboard.autoB = toKeyCode(keyboardJson["autoB"].get<std::string>().c_str());
         }
 
         if (keyboardJson.find("start")->second.is<double>()) {
