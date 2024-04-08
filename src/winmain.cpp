@@ -22,6 +22,7 @@
 #include <dinput.h>
 #include <dsound.h>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <mmeapi.h>
 #include <process.h>
@@ -57,13 +58,11 @@ static void sound_thread(void* arg);
 static int ds_wait(BYTE wctrl);
 static void lock();
 static void unlock();
-static void reset_keyboard_assign();
 static void toggle_fullscreen();
 ATOM MyRegisterClass(HINSTANCE hInstance);
 BOOL InitInstance(HINSTANCE, int);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK About(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK VirtualKeyboard(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
 INT_PTR CALLBACK KeyConfigKeyboard(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK ScreenResolution(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK VolumeControl(HWND, UINT, WPARAM, LPARAM);
@@ -101,7 +100,16 @@ static uintptr_t _uiSnd = -1;
 static BYTE _SndCTRL = SND_INIT;
 static CRITICAL_SECTION _lock;
 static InputManager _im(putlog);
-static std::vector<KeyConfig*> _kbConfig;
+static KeyConfig _kbA("A", DIK_X);
+static KeyConfig _kbB("B", DIK_Z);
+static KeyConfig _kbAutoB("autoB", DIK_C);
+static KeyConfig _kbSelect("SELECT", DIK_ESCAPE);
+static KeyConfig _kbStart("START", DIK_SPACE);
+static KeyConfig _kbUp("UP", DIK_UP);
+static KeyConfig _kbDown("DOWN", DIK_DOWN);
+static KeyConfig _kbLeft("LEFT", DIK_LEFT);
+static KeyConfig _kbRight("RIGHT", DIK_RIGHT);
+static std::vector<KeyConfig*> _kb;
 static VGS0 vgs0(VDP::ColorMode::RGB555);
 static unsigned char _saveData[0x4000];
 static size_t _saveSize = 0;
@@ -185,14 +193,11 @@ static void save_config()
 
     picojson::object keyConfig;
     picojson::array kb;
-    for (auto cfg : _kbConfig) {
+    for (auto k : _kb) {
         picojson::object co;
-        co.insert(std::make_pair("pad", picojson::value(KeyConfig::toString(cfg->pad))));
-        co.insert(std::make_pair("type", picojson::value(KeyConfig::toString(cfg->type))));
-        if (cfg->type == KeyConfig::Type::Button) {
-            co.insert(std::make_pair("button", picojson::value((double)cfg->buttonMask)));
-            kb.push_back(picojson::value(co));
-        }
+        co.insert(std::make_pair("pad", k->pad));
+        co.insert(std::make_pair("button", picojson::value((double)k->button)));
+        kb.push_back(picojson::value(co));
     }
     keyConfig.insert(std::make_pair("keyboard", kb));
     o.insert(std::make_pair("key_config", keyConfig));
@@ -205,30 +210,36 @@ static void save_config()
     }
 }
 
-static void extract_key_config(std::vector<KeyConfig*>& config, picojson::array& array)
+static void extract_key_config(picojson::array& array)
 {
-    for (auto cfg : config) {
-        delete cfg;
-    }
-    config.clear();
     for (const auto& cfg : array) {
-        auto pad = KeyConfig::toPad(cfg.get("pad").get<std::string>());
-        auto type = KeyConfig::toType(cfg.get("type").get<std::string>());
-        KeyConfig* newConfig = nullptr;
-        switch (type) {
-            case KeyConfig::Type::Button:
-                newConfig = KeyConfig::makeButton(pad, (int)cfg.get("button").get<double>());
-                break;
-            case KeyConfig::Type::Axis: {
-                auto axisType = KeyConfig::toAxisType(cfg.get("axisType").get<std::string>());
-                auto compare = (int)cfg.get("compare").get<double>();
-                newConfig = KeyConfig::makeAxis(pad, axisType, compare);
-                break;
-            }
+        auto padJson = cfg.get("pad");
+        auto buttonJson = cfg.get("button");
+        if (!padJson.is<std::string>() || !buttonJson.is<double>()) {
+            continue;
         }
-        if (newConfig) {
-            config.push_back(newConfig);
+        auto pad = padJson.get<std::string>().c_str();
+        auto button = (int)buttonJson.get<double>();
+        if (0 == _stricmp(pad, "A")) {
+            _kbA.button = button;
+        } else if (0 == _stricmp(pad, "B")) {
+            _kbB.button = button;
+        } else if (0 == _stricmp(pad, "autoB")) {
+            _kbAutoB.button = button;
+        } else if (0 == _stricmp(pad, "START")) {
+            _kbStart.button = button;
+        } else if (0 == _stricmp(pad, "SELECT")) {
+            _kbSelect.button = button;
+        } else if (0 == _stricmp(pad, "UP")) {
+            _kbUp.button = button;
+        } else if (0 == _stricmp(pad, "DOWN")) {
+            _kbDown.button = button;
+        } else if (0 == _stricmp(pad, "LEFT")) {
+            _kbLeft.button = button;
+        } else if (0 == _stricmp(pad, "RIGHT")) {
+            _kbRight.button = button;
         }
+        putlog("KeyConfig: %s = %d", pad, button);
     }
 }
 
@@ -244,8 +255,17 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     DeleteFileA("log.txt");
     putlog("Launching Battle Marine for Windows");
 
+    _kb.push_back(&_kbA);
+    _kb.push_back(&_kbB);
+    _kb.push_back(&_kbAutoB);
+    _kb.push_back(&_kbStart);
+    _kb.push_back(&_kbSelect);
+    _kb.push_back(&_kbUp);
+    _kb.push_back(&_kbDown);
+    _kb.push_back(&_kbLeft);
+    _kb.push_back(&_kbRight);
+
     putlog("Loading config.json");
-    reset_keyboard_assign();
     _windowX = CW_USEDEFAULT;
     _windowY = CW_USEDEFAULT;
     _windowWidth = VRAM_WIDTH_HIGH;
@@ -294,15 +314,23 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                     _windowHeight = VRAM_HEIGHT_TINY;
                 }
             }
+            putlog("Config: window(x=%d, y=%d, w=%d, h=%d)", _windowX, _windowY, _windowWidth, _windowHeight);
+
             if (basic.find("isFullScreen")->second.is<bool>()) {
                 _isFullScreen = basic["isFullScreen"].get<bool>();
             }
+            putlog("Config: isFullScreen=%s", _isFullScreen ? "true" : "false");
+
             if (basic.find("isAspectFit")->second.is<bool>()) {
                 _isAspectFit = basic["isAspectFit"].get<bool>();
             }
+            putlog("Config: isAspectFit=%s", _isAspectFit ? "true" : "false");
+
             if (basic.find("isScanline")->second.is<bool>()) {
                 _isScanline = basic["isScanline"].get<bool>();
             }
+            putlog("Config: isScanline=%s", _isScanline ? "true" : "false");
+
             if (basic.find("resolution")->second.is<std::string>()) {
                 const char* res = basic["resolution"].get<std::string>().c_str();
                 if (0 == strncmp(res, "low", 3)) {
@@ -313,6 +341,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                     _resolution = Resolution::High;
                 }
             }
+            putlog("Config: resolution=%d", _resolution);
+
             if (basic.find("volumeBgm")->second.is<double>()) {
                 _volumeBgm = (int)basic["volumeBgm"].get<double>();
                 if (_volumeBgm < 0) {
@@ -321,6 +351,8 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                     _volumeBgm = 100;
                 }
             }
+            putlog("Config: volumeBgm=%d", _volumeBgm);
+
             if (basic.find("volumeSe")->second.is<double>()) {
                 _volumeSe = (int)basic["volumeSe"].get<double>();
                 if (_volumeSe < 0) {
@@ -329,13 +361,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                     _volumeSe = 100;
                 }
             }
-            if (basic.find("key_config")->second.is<picojson::object>()) {
+            putlog("Config: volumeSe=%d", _volumeSe);
+
+            if (obj.find("key_config")->second.is<picojson::object>()) {
                 auto keyConfig = obj["key_config"].get<picojson::object>();
-                if (basic.find("keyboard")->second.is<picojson::array>()) {
-                    picojson::array kb = keyConfig["keyboard"].get<picojson::array>();
-                    if (0 < kb.size()) {
-                        extract_key_config(_kbConfig, kb);
-                    }
+                picojson::array kb = keyConfig["keyboard"].get<picojson::array>();
+                putlog("keyboard entries: %d", kb.size());
+                if (0 < kb.size()) {
+                    extract_key_config(kb);
                 }
             }
         }
@@ -532,13 +565,15 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
         // DirectInput (keyboard)
         _im.getKeyStatus(key);
-        for (auto cfg : _kbConfig) {
-            pad |= cfg->check(key);
-        }
-
-        if (!_isFullScreen && 0 != pad) {
-            ShowCursor(FALSE);
-        }
+        if (key[_kbA.button]) pad |= VGS0_JOYPAD_T1;
+        if (key[_kbB.button]) pad |= VGS0_JOYPAD_T2;
+        if (key[_kbStart.button]) pad |= VGS0_JOYPAD_ST;
+        if (key[_kbSelect.button]) pad |= VGS0_JOYPAD_SE;
+        if (key[_kbUp.button]) pad |= VGS0_JOYPAD_UP;
+        if (key[_kbDown.button]) pad |= VGS0_JOYPAD_DW;
+        if (key[_kbLeft.button]) pad |= VGS0_JOYPAD_LE;
+        if (key[_kbRight.button]) pad |= VGS0_JOYPAD_RI;
+        if (key[_kbAutoB.button]) pad |= loopCounter % 6 < 3 ? VGS0_JOYPAD_T2 : 0;
 
         if (!steam->isOverlay()) {
             lock();
@@ -624,10 +659,10 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     }
 
     /* regist window class */
-    WNDCLASS wndclass;
+    WNDCLASSA wndclass;
     memset(&wndclass, 0, sizeof(wndclass));
     wndclass.hCursor = LoadCursor(NULL, IDC_ARROW);
-    wndclass.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_MAIN));
+    wndclass.hIcon = LoadIconA(hInst, MAKEINTRESOURCEA(IDI_MAIN));
     wndclass.lpszMenuName = NULL;
     wndclass.lpszClassName = "VGSZero";
     wndclass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
@@ -636,8 +671,8 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wndclass.lpfnWndProc = (WNDPROC)WndProc;
     wndclass.cbClsExtra = 0;
     wndclass.cbWndExtra = 0;
-    wndclass.lpszMenuName = MAKEINTRESOURCE(IDC_VGSZERO);
-    if (!RegisterClass(&wndclass)) {
+    wndclass.lpszMenuName = MAKEINTRESOURCEA(IDC_VGSZERO);
+    if (!RegisterClassA(&wndclass)) {
         putlog("RegisterClass error. (%d)", GetLastError());
         return FALSE;
     }
@@ -787,9 +822,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             break;
         case WM_MOUSEMOVE:
-            if (!_isFullScreen) {
-                ShowCursor(TRUE);
-            }
             return DefWindowProc(hWnd, message, wParam, lParam);
         default:
             return DefWindowProc(hWnd, message, wParam, lParam);
@@ -815,7 +847,7 @@ INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return (INT_PTR)FALSE;
 }
 
-static std::string get_keyboard_string(unsigned char pad)
+static std::string get_keyboard_string(unsigned char button)
 {
     static const char* dik[256] = {
         "(n/a)", "DIK_ESCAPE", "DIK_1", "DIK_2", "DIK_3", "DIK_4", "DIK_5", "DIK_6",
@@ -850,248 +882,7 @@ static std::string get_keyboard_string(unsigned char pad)
         "DIK_WEBSTOP", "DIK_WEBFORWARD", "DIK_WEBBACK", "DIK_MYCOMPUTER", "DIK_MAIL", "DIK_MEDIASELECT", "(n/a)", "(n/a)",
         "(n/a)", "(n/a)", "(n/a)", "(n/a)", "(n/a)", "(n/a)", "(n/a)", "(n/a)",
         "(n/a)", "(n/a)", "(n/a)", "(n/a)", "(n/a)", "(n/a)", "(n/a)", "(n/a)"};
-    for (auto cfg : _kbConfig) {
-        if (cfg->pad == pad && KeyConfig::Type::Button == cfg->type) {
-            return dik[cfg->buttonMask & 0xFF];
-        }
-    }
-    return "n/a";
-}
-
-static void assignNewKeyConfig(HWND hDlg, unsigned char assign_pad)
-{
-    int assign_key = 0;
-    switch (DialogBox(hInst, MAKEINTRESOURCE(IDD_VIRTUAL_KEY), hDlg, VirtualKeyboard)) {
-        case IDC_KEY_0:
-            assign_key = DIK_0;
-            break;
-        case IDC_KEY_1:
-            assign_key = DIK_1;
-            break;
-        case IDC_KEY_2:
-            assign_key = DIK_2;
-            break;
-        case IDC_KEY_3:
-            assign_key = DIK_3;
-            break;
-        case IDC_KEY_4:
-            assign_key = DIK_4;
-            break;
-        case IDC_KEY_5:
-            assign_key = DIK_5;
-            break;
-        case IDC_KEY_6:
-            assign_key = DIK_6;
-            break;
-        case IDC_KEY_7:
-            assign_key = DIK_7;
-            break;
-        case IDC_KEY_8:
-            assign_key = DIK_8;
-            break;
-        case IDC_KEY_9:
-            assign_key = DIK_9;
-            break;
-        case IDC_KEY_A:
-            assign_key = DIK_A;
-            break;
-        case IDC_KEY_B:
-            assign_key = DIK_B;
-            break;
-        case IDC_KEY_C:
-            assign_key = DIK_C;
-            break;
-        case IDC_KEY_D:
-            assign_key = DIK_D;
-            break;
-        case IDC_KEY_E:
-            assign_key = DIK_E;
-            break;
-        case IDC_KEY_F:
-            assign_key = DIK_F;
-            break;
-        case IDC_KEY_G:
-            assign_key = DIK_G;
-            break;
-        case IDC_KEY_H:
-            assign_key = DIK_H;
-            break;
-        case IDC_KEY_I:
-            assign_key = DIK_I;
-            break;
-        case IDC_KEY_J:
-            assign_key = DIK_J;
-            break;
-        case IDC_KEY_K:
-            assign_key = DIK_K;
-            break;
-        case IDC_KEY_L:
-            assign_key = DIK_L;
-            break;
-        case IDC_KEY_M:
-            assign_key = DIK_M;
-            break;
-        case IDC_KEY_N:
-            assign_key = DIK_N;
-            break;
-        case IDC_KEY_O:
-            assign_key = DIK_O;
-            break;
-        case IDC_KEY_P:
-            assign_key = DIK_P;
-            break;
-        case IDC_KEY_Q:
-            assign_key = DIK_Q;
-            break;
-        case IDC_KEY_R:
-            assign_key = DIK_R;
-            break;
-        case IDC_KEY_S:
-            assign_key = DIK_S;
-            break;
-        case IDC_KEY_T:
-            assign_key = DIK_T;
-            break;
-        case IDC_KEY_U:
-            assign_key = DIK_U;
-            break;
-        case IDC_KEY_V:
-            assign_key = DIK_V;
-            break;
-        case IDC_KEY_W:
-            assign_key = DIK_W;
-            break;
-        case IDC_KEY_X:
-            assign_key = DIK_X;
-            break;
-        case IDC_KEY_Y:
-            assign_key = DIK_Y;
-            break;
-        case IDC_KEY_Z:
-            assign_key = DIK_Z;
-            break;
-        case IDC_KEY_MINUS:
-            assign_key = DIK_MINUS;
-            break;
-        case IDC_KEY_EOR:
-            assign_key = DIK_CIRCUMFLEX;
-            break;
-        case IDC_KEY_YEN:
-            assign_key = DIK_YEN;
-            break;
-        case IDC_KEY_BACK:
-            assign_key = DIK_BACKSPACE;
-            break;
-        case IDC_KEY_ESC:
-            assign_key = DIK_ESCAPE;
-            break;
-        case IDC_KEY_TAB:
-            assign_key = DIK_TAB;
-            break;
-        case IDC_KEY_AT:
-            assign_key = DIK_AT;
-            break;
-        case IDC_KEY_KL:
-            assign_key = DIK_LBRACKET;
-            break;
-        case IDC_KEY_CAPS:
-            assign_key = DIK_CAPSLOCK;
-            break;
-        case IDC_KEY_SEMICOLON:
-            assign_key = DIK_SEMICOLON;
-            break;
-        case IDC_KEY_COLON:
-            assign_key = DIK_COLON;
-            break;
-        case IDC_KEY_KR:
-            assign_key = DIK_RBRACKET;
-            break;
-        case IDC_KEY_LSHIFT:
-            assign_key = DIK_LSHIFT;
-            break;
-        case IDC_KEY_COMMA:
-            assign_key = DIK_COMMA;
-            break;
-        case IDC_KEY_PERIOD:
-            assign_key = DIK_PERIOD;
-            break;
-        case IDC_KEY_SLASH:
-            assign_key = DIK_SLASH;
-            break;
-        case IDC_KEY_UNDER:
-            assign_key = DIK_BACKSLASH;
-            break;
-        case IDC_KEY_RSHIFT:
-            assign_key = DIK_RSHIFT;
-            break;
-        case IDC_KEY_ENTER:
-            assign_key = DIK_RETURN;
-            break;
-        case IDC_KEY_SPACE:
-            assign_key = DIK_SPACE;
-            break;
-        case IDC_KEY_LEFT:
-            assign_key = DIK_LEFT;
-            break;
-        case IDC_KEY_UP:
-            assign_key = DIK_UP;
-            break;
-        case IDC_KEY_DOWN:
-            assign_key = DIK_DOWN;
-            break;
-        case IDC_KEY_RIGHT:
-            assign_key = DIK_RIGHT;
-            break;
-        default:
-            return;
-    }
-    KeyConfig* newConfig = KeyConfig::makeButton(assign_pad, assign_key);
-    KeyConfig* oldConfig;
-    do {
-        oldConfig = nullptr;
-        for (auto it = _kbConfig.begin(); it != _kbConfig.end(); it++) {
-            if ((*it)->pad == assign_pad) {
-                oldConfig = *it;
-                _kbConfig.erase(it);
-                break;
-            }
-        }
-        if (oldConfig) {
-            delete oldConfig;
-        }
-    } while (oldConfig);
-    _kbConfig.push_back(newConfig);
-
-    int idc = 0;
-    switch (assign_pad) {
-        case VGS0_JOYPAD_T1:
-            idc = IDC_BUTTON_A;
-            break;
-        case VGS0_JOYPAD_T2:
-            idc = IDC_BUTTON_B;
-            break;
-        case VGS0_JOYPAD_ST:
-            idc = IDC_BUTTON_START;
-            break;
-        case VGS0_JOYPAD_SE:
-            idc = IDC_BUTTON_SELECT;
-            break;
-        case VGS0_JOYPAD_UP:
-            idc = IDC_BUTTON_UP;
-            break;
-        case VGS0_JOYPAD_DW:
-            idc = IDC_BUTTON_DOWN;
-            break;
-        case VGS0_JOYPAD_LE:
-            idc = IDC_BUTTON_LEFT;
-            break;
-        case VGS0_JOYPAD_RI:
-            idc = IDC_BUTTON_RIGHT;
-            break;
-    }
-    if (idc) {
-        SetDlgItemTextA(hDlg, idc, get_keyboard_string(assign_pad).c_str());
-    }
+    return dik[button];
 }
 
 INT_PTR CALLBACK VirtualKeyboard(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
@@ -1106,62 +897,139 @@ INT_PTR CALLBACK VirtualKeyboard(HWND hDlg, UINT message, WPARAM wParam, LPARAM 
     return (INT_PTR)FALSE;
 }
 
+static void assignNewKeyConfig(HWND hDlg, KeyConfig* cfg)
+{
+    int assign_key = 0;
+    switch (DialogBox(hInst, MAKEINTRESOURCE(IDD_VIRTUAL_KEY), hDlg, VirtualKeyboard)) {
+        case IDC_KEY_0: assign_key = DIK_0; break;
+        case IDC_KEY_1: assign_key = DIK_1; break;
+        case IDC_KEY_2: assign_key = DIK_2; break;
+        case IDC_KEY_3: assign_key = DIK_3; break;
+        case IDC_KEY_4: assign_key = DIK_4; break;
+        case IDC_KEY_5: assign_key = DIK_5; break;
+        case IDC_KEY_6: assign_key = DIK_6; break;
+        case IDC_KEY_7: assign_key = DIK_7; break;
+        case IDC_KEY_8: assign_key = DIK_8; break;
+        case IDC_KEY_9: assign_key = DIK_9; break;
+        case IDC_KEY_A: assign_key = DIK_A; break;
+        case IDC_KEY_B: assign_key = DIK_B; break;
+        case IDC_KEY_C: assign_key = DIK_C; break;
+        case IDC_KEY_D: assign_key = DIK_D; break;
+        case IDC_KEY_E: assign_key = DIK_E; break;
+        case IDC_KEY_F: assign_key = DIK_F; break;
+        case IDC_KEY_G: assign_key = DIK_G; break;
+        case IDC_KEY_H: assign_key = DIK_H; break;
+        case IDC_KEY_I: assign_key = DIK_I; break;
+        case IDC_KEY_J: assign_key = DIK_J; break;
+        case IDC_KEY_K: assign_key = DIK_K; break;
+        case IDC_KEY_L: assign_key = DIK_L; break;
+        case IDC_KEY_M: assign_key = DIK_M; break;
+        case IDC_KEY_N: assign_key = DIK_N; break;
+        case IDC_KEY_O: assign_key = DIK_O; break;
+        case IDC_KEY_P: assign_key = DIK_P; break;
+        case IDC_KEY_Q: assign_key = DIK_Q; break;
+        case IDC_KEY_R: assign_key = DIK_R; break;
+        case IDC_KEY_S: assign_key = DIK_S; break;
+        case IDC_KEY_T: assign_key = DIK_T; break;
+        case IDC_KEY_U: assign_key = DIK_U; break;
+        case IDC_KEY_V: assign_key = DIK_V; break;
+        case IDC_KEY_W: assign_key = DIK_W; break;
+        case IDC_KEY_X: assign_key = DIK_X; break;
+        case IDC_KEY_Y: assign_key = DIK_Y; break;
+        case IDC_KEY_Z: assign_key = DIK_Z; break;
+        case IDC_KEY_MINUS: assign_key = DIK_MINUS; break;
+        case IDC_KEY_EOR: assign_key = DIK_CIRCUMFLEX; break;
+        case IDC_KEY_YEN: assign_key = DIK_YEN; break;
+        case IDC_KEY_BACK: assign_key = DIK_BACKSPACE; break;
+        case IDC_KEY_ESC: assign_key = DIK_ESCAPE; break;
+        case IDC_KEY_TAB: assign_key = DIK_TAB; break;
+        case IDC_KEY_AT: assign_key = DIK_AT; break;
+        case IDC_KEY_KL: assign_key = DIK_LBRACKET; break;
+        case IDC_KEY_CAPS: assign_key = DIK_CAPSLOCK; break;
+        case IDC_KEY_SEMICOLON: assign_key = DIK_SEMICOLON; break;
+        case IDC_KEY_COLON: assign_key = DIK_COLON; break;
+        case IDC_KEY_KR: assign_key = DIK_RBRACKET; break;
+        case IDC_KEY_LSHIFT: assign_key = DIK_LSHIFT; break;
+        case IDC_KEY_COMMA: assign_key = DIK_COMMA; break;
+        case IDC_KEY_PERIOD: assign_key = DIK_PERIOD; break;
+        case IDC_KEY_SLASH: assign_key = DIK_SLASH; break;
+        case IDC_KEY_UNDER: assign_key = DIK_BACKSLASH; break;
+        case IDC_KEY_RSHIFT: assign_key = DIK_RSHIFT; break;
+        case IDC_KEY_ENTER: assign_key = DIK_RETURN; break;
+        case IDC_KEY_SPACE: assign_key = DIK_SPACE; break;
+        case IDC_KEY_LEFT: assign_key = DIK_LEFT; break;
+        case IDC_KEY_UP: assign_key = DIK_UP; break;
+        case IDC_KEY_DOWN: assign_key = DIK_DOWN; break;
+        case IDC_KEY_RIGHT: assign_key = DIK_RIGHT; break;
+        default: return;
+    }
+    cfg->button = assign_key;
+}
+
 INT_PTR CALLBACK KeyConfigKeyboard(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    UNREFERENCED_PARAMETER(lParam);
-
+    std::function<void(void)> repaint = [&]() {
+        SetDlgItemTextA(hDlg, IDC_BUTTON_A, get_keyboard_string(_kbA.button).c_str());
+        SetDlgItemTextA(hDlg, IDC_BUTTON_B, get_keyboard_string(_kbB.button).c_str());
+        SetDlgItemTextA(hDlg, IDC_BUTTON_B_AUTO, get_keyboard_string(_kbAutoB.button).c_str());
+        SetDlgItemTextA(hDlg, IDC_BUTTON_START, get_keyboard_string(_kbStart.button).c_str());
+        SetDlgItemTextA(hDlg, IDC_BUTTON_UP, get_keyboard_string(_kbUp.button).c_str());
+        SetDlgItemTextA(hDlg, IDC_BUTTON_DOWN, get_keyboard_string(_kbDown.button).c_str());
+        SetDlgItemTextA(hDlg, IDC_BUTTON_LEFT, get_keyboard_string(_kbLeft.button).c_str());
+        SetDlgItemTextA(hDlg, IDC_BUTTON_RIGHT, get_keyboard_string(_kbRight.button).c_str());
+    };
     switch (message) {
         case WM_INITDIALOG:
-            SetDlgItemTextA(hDlg, IDC_BUTTON_A, get_keyboard_string(VGS0_JOYPAD_T1).c_str());
-            SetDlgItemTextA(hDlg, IDC_BUTTON_B, get_keyboard_string(VGS0_JOYPAD_T2).c_str());
-            SetDlgItemTextA(hDlg, IDC_BUTTON_START, get_keyboard_string(VGS0_JOYPAD_ST).c_str());
-            SetDlgItemTextA(hDlg, IDC_BUTTON_SELECT, get_keyboard_string(VGS0_JOYPAD_SE).c_str());
-            SetDlgItemTextA(hDlg, IDC_BUTTON_UP, get_keyboard_string(VGS0_JOYPAD_UP).c_str());
-            SetDlgItemTextA(hDlg, IDC_BUTTON_DOWN, get_keyboard_string(VGS0_JOYPAD_DW).c_str());
-            SetDlgItemTextA(hDlg, IDC_BUTTON_LEFT, get_keyboard_string(VGS0_JOYPAD_LE).c_str());
-            SetDlgItemTextA(hDlg, IDC_BUTTON_RIGHT, get_keyboard_string(VGS0_JOYPAD_RI).c_str());
-            return (INT_PTR)TRUE;
-
+            repaint();
+            break;
         case WM_COMMAND:
-            putlog("WM_COMMAND wParam=%d, lParam=%d", wParam, lParam);
-            switch (wParam) {
+            switch (LOWORD(wParam)) {
+                case IDCANCEL:
+                    _kbA.button = DIK_X;
+                    _kbB.button = DIK_Z;
+                    _kbAutoB.button = DIK_C;
+                    _kbStart.button = DIK_SPACE;
+                    _kbSelect.button = DIK_ESCAPE;
+                    _kbUp.button = DIK_UP;
+                    _kbDown.button = DIK_DOWN;
+                    _kbLeft.button = DIK_LEFT;
+                    _kbRight.button = DIK_RIGHT;
+                    repaint();
+                    break;
                 case IDOK:
                     EndDialog(hDlg, LOWORD(wParam));
                     return (INT_PTR)TRUE;
-                case IDCANCEL:
-                    reset_keyboard_assign();
-                    SetDlgItemTextA(hDlg, IDC_BUTTON_A, get_keyboard_string(VGS0_JOYPAD_T1).c_str());
-                    SetDlgItemTextA(hDlg, IDC_BUTTON_B, get_keyboard_string(VGS0_JOYPAD_T2).c_str());
-                    SetDlgItemTextA(hDlg, IDC_BUTTON_START, get_keyboard_string(VGS0_JOYPAD_ST).c_str());
-                    SetDlgItemTextA(hDlg, IDC_BUTTON_SELECT, get_keyboard_string(VGS0_JOYPAD_SE).c_str());
-                    SetDlgItemTextA(hDlg, IDC_BUTTON_UP, get_keyboard_string(VGS0_JOYPAD_UP).c_str());
-                    SetDlgItemTextA(hDlg, IDC_BUTTON_DOWN, get_keyboard_string(VGS0_JOYPAD_DW).c_str());
-                    SetDlgItemTextA(hDlg, IDC_BUTTON_LEFT, get_keyboard_string(VGS0_JOYPAD_LE).c_str());
-                    SetDlgItemTextA(hDlg, IDC_BUTTON_RIGHT, get_keyboard_string(VGS0_JOYPAD_RI).c_str());
-                    break;
                 case IDC_BUTTON_A:
-                    assignNewKeyConfig(hDlg, VGS0_JOYPAD_T1);
+                    assignNewKeyConfig(hDlg, &_kbA);
+                    repaint();
                     break;
                 case IDC_BUTTON_B:
-                    assignNewKeyConfig(hDlg, VGS0_JOYPAD_T2);
+                    assignNewKeyConfig(hDlg, &_kbB);
+                    repaint();
+                    break;
+                case IDC_BUTTON_B_AUTO:
+                    assignNewKeyConfig(hDlg, &_kbAutoB);
+                    repaint();
                     break;
                 case IDC_BUTTON_START:
-                    assignNewKeyConfig(hDlg, VGS0_JOYPAD_ST);
-                    break;
-                case IDC_BUTTON_SELECT:
-                    assignNewKeyConfig(hDlg, VGS0_JOYPAD_SE);
+                    assignNewKeyConfig(hDlg, &_kbStart);
+                    repaint();
                     break;
                 case IDC_BUTTON_UP:
-                    assignNewKeyConfig(hDlg, VGS0_JOYPAD_UP);
+                    assignNewKeyConfig(hDlg, &_kbUp);
+                    repaint();
                     break;
                 case IDC_BUTTON_DOWN:
-                    assignNewKeyConfig(hDlg, VGS0_JOYPAD_DW);
+                    assignNewKeyConfig(hDlg, &_kbDown);
+                    repaint();
                     break;
                 case IDC_BUTTON_LEFT:
-                    assignNewKeyConfig(hDlg, VGS0_JOYPAD_LE);
+                    assignNewKeyConfig(hDlg, &_kbLeft);
+                    repaint();
                     break;
                 case IDC_BUTTON_RIGHT:
-                    assignNewKeyConfig(hDlg, VGS0_JOYPAD_RI);
+                    assignNewKeyConfig(hDlg, &_kbRight);
+                    repaint();
                     break;
             }
             break;
@@ -1615,21 +1483,6 @@ static void lock()
 static void unlock()
 {
     LeaveCriticalSection(&_lock);
-}
-
-// DirectInput (Keyboard) の初期値設定
-static void reset_keyboard_assign()
-{
-    for (auto cfg : _kbConfig) delete cfg;
-    _kbConfig.clear();
-    _kbConfig.push_back(KeyConfig::makeButton(VGS0_JOYPAD_UP, DIK_UP));
-    _kbConfig.push_back(KeyConfig::makeButton(VGS0_JOYPAD_DW, DIK_DOWN));
-    _kbConfig.push_back(KeyConfig::makeButton(VGS0_JOYPAD_LE, DIK_LEFT));
-    _kbConfig.push_back(KeyConfig::makeButton(VGS0_JOYPAD_RI, DIK_RIGHT));
-    _kbConfig.push_back(KeyConfig::makeButton(VGS0_JOYPAD_T1, DIK_X));
-    _kbConfig.push_back(KeyConfig::makeButton(VGS0_JOYPAD_T2, DIK_Z));
-    _kbConfig.push_back(KeyConfig::makeButton(VGS0_JOYPAD_ST, DIK_SPACE));
-    _kbConfig.push_back(KeyConfig::makeButton(VGS0_JOYPAD_SE, DIK_ESCAPE));
 }
 
 static void toggle_fullscreen()
