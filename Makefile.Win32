@@ -1,3 +1,4 @@
+EXENAME = bmarine.exe
 CFLAGS = /permissive-\
 	/GS\
 	/W2\
@@ -31,7 +32,7 @@ CFLAGS = /permissive-\
 	/FC\
 	/EHsc\
 	/nologo\
-	/Fp"GAME.pch"\
+	/Fp"bmarine.pch"\
 	/diagnostics:column
 
 OBJECTS = winmain.obj\
@@ -39,25 +40,25 @@ OBJECTS = winmain.obj\
 	vgstone.obj\
 	resource.res
 
-all: GAME.exe steam_api.dll
+all: $(EXENAME) steam_api.dll
 	-rmdir /S /Q release
 	mkdir release
-	copy GAME.exe release
-	copy GAME.exe.manifest release
+	copy $(EXENAME) release
+	copy $(EXENAME).manifest release
 	copy steam_api.dll release
 	copy README.txt release
 	copy LICENSE*.txt release
-	GAME.exe
+	$(EXENAME)
 
 steam_api.dll: ./sdk/redistributable_bin/steam_api.dll
 	COPY /Y .\sdk\redistributable_bin\steam_api.dll steam_api.dll
 
-GAME.exe: $(OBJECTS)
+$(EXENAME): $(OBJECTS)
 	LINK\
-	/OUT:GAME.exe\
+	/OUT:$(EXENAME)\
 	/MANIFEST\
 	/NXCOMPAT\
-	/PDB:GAME.pdb\
+	/PDB:bmarine.pdb\
 	/DYNAMICBASE\
 	"kernel32.lib"\
 	"user32.lib"\
@@ -84,10 +85,10 @@ GAME.exe: $(OBJECTS)
 	/SUBSYSTEM:WINDOWS\
 	/MANIFESTUAC:"level='asInvoker'\
 	uiAccess='false'"\
-	/ManifestFile:"GAME.exe.manifest"\
+	/ManifestFile:"bmarine.exe.manifest"\
 	/OPT:ICF\
 	/ERRORREPORT:PROMPT\
-	/ILK:"GAME.ilk"\
+	/ILK:"bmarine.ilk"\
 	/NOLOGO\
 	/TLBID:1\
 	$(OBJECTS)

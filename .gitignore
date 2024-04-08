@@ -6,6 +6,8 @@ bmarine
 game
 GAME.exe
 GAME.exe.manifest
+bmarine.exe
+bmarine.exe.manifest
 log.txt
 *.pdb
 *.iobj
