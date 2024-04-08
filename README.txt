@@ -1,8 +1,8 @@
 ================================================================================
-Battle Marine for Steam
+Battle Marine for Steam (Windows, Linux, SteamOS and macOS)
 
-Porgrammed by Yoji Suzuki
 Copyright (C) 2024, SUZUKIPLAN
+Porgrammed by Yoji Suzuki https://github.com/suzukiplan
 ================================================================================
 
 Thank you for purchasing the Battle Marine for Steam.
@@ -17,40 +17,41 @@ Your rank will be assessed according to the results of your play. Aim for the ra
 
 Controls
 
-This game can be played with a gamepad or keyboard.
-Button assignments can be freely customized in the SteamInput menu.
+- This game can be played with a gamepad or keyboard.
+- Gamepad's button assignments can be freely customized in the SteamInput menu.
+- Keyboard's assignments can be freely customized by the UI (Windows) or config.json (Linux/macOS)
 
 Keyboard Controls (Windows)
 
-- Cursor key: D-Pad (Can be changed in the key configuration)
-- X key: A button (Can be changed in the key configuration)
-- Z key: B button (Can be changed in the key configuration)
-- Space key: START button (Can be changed in the key configuration)
-- ESC key: SELECT button (Can be changed in the key configuration)
-- CTRL+R: Reset the game
-- CTRL+X: Exit the game (CTRL+Q, CTRL+C also work)
+- Cursor key: D-Pad
+- X key: Jump
+- Z key: Fire
+- C key: Rapid Auto-Fire
+- Space key: Pause
+- CTRL+R: Reset
+- CTRL+X: Exit (CTRL+Q, CTRL+C also work)
 - Alt+Enter: Toggle full screen (CTRL+F also work)
 - CTRL+A: Toggle screen aspect mode
+- CTRL+L: Toggle scanline mode
 - CTRL+S: Screen Resolution Settings
 - CTRL+K: Key configuration for the Keyboard
 
 Keyboard Controls (Linux/macOS)
 
 - Cursor key: D-Pad
-- X key: A button
-- Z key: B button
-- Space key: START button
-- ESC key: SELECT button
-- R: Reset the game
-- Q: Exit the game
+- X key: Jump
+- Z key: Fire
+- C key: Rapid Auto-Fire
+- Space key: Pause
 - R: Reset
+- Q: Exit the game
 
 Notes on the Linux/macOS version
 
 When you launch Battle Marine, a configuration file called config.json will be generated.
 The config.json file is saved under the directory opened by opening the Battle Marine page in the Steam client and selecting "Settings Icon" > "Manage" > "Browse local files".
 You can customize the following items:
-- graphic.isFullScreen: true = full screen, false = window mode
+- graphic.isFullScreen: true = full screen mode, false = window mode
 - graphic.isScanline: true = with screen effects, false = without screen effects
 - gaphic.windowHeight: height of the screen in window mode
 - gaphic.windowWidth: width of the screen in window mode
@@ -58,6 +59,7 @@ You can customize the following items:
 - sound.volumeSe: Volume of sound effect (0-100)
 - keyboard.a: Key code for A button (jump)
 - keyboard.b: key code for B button (fire)
+- keyboard.autoB: key code for B button (rapid auto-fire)
 - keyboard.start: key code for START button (pause)
 - keyboard.select: key code for SELECT button (n/a)
 - keyboard.up: key code for up button
@@ -102,6 +104,11 @@ Of course, there are no restrictions on monetization.
 There is no need to contact the author prior to or after the event.
 Similarly, there are no restrictions on publishing screenshots in magazines, web media, social media, etc.
 
+Video Reviews
+
+ShmupsBR Drops: Março de 2024
+https://www.youtube.com/watch?v=Gxn_P_2ZRWs
+
 Contact us
 
 1. Twitter: https://twitter.com/suzukiplan
@@ -116,3 +123,5 @@ This product uses the following Open Source Software:
 3. SUZUKIPLAN - Z80 Emulator (LICENSE-Z80.txt)
 4. VGS-Zero Library for Z80 (LICENSE-VGS0LIB.txt)
 5. VGS-Zero (LICENSE-VGS0.txt)
+
+If you contact us, we will be prepared to provide source code to the extent that we are obligated to disclose it under the GPL license.
