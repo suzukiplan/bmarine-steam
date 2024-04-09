@@ -1,7 +1,5 @@
 EXENAME = bmarine
 CFLAGS = -O2
-CFLAGS += -pie
-CFLAGS += -static-libgcc -static-libstdc++ -ftls-model=global-dynamic
 CFLAGS += -I/usr/include/SDL2
 CFLAGS += -I/usr/local/include/SDL2
 CFLAGS += -I/opt/X11/include
