@@ -242,7 +242,7 @@ int main(int argc, char* argv[])
     switch (gpuType) {
         case 0: log("GPU Type: n/a (software rendering)"); break;
         case SDL_WINDOW_OPENGL: log("GPU Type: OpenGL"); break;
-#ifdef DARWin
+#ifdef DARWIN
         case SDL_WINDOW_METAL: log("GPU Type: Metal"); break;
 #endif
         case SDL_WINDOW_VULKAN: log("GPU Type: Vulkan"); break;
