@@ -1,27 +1,33 @@
 ================================================================================
-Battle Marine for Steam (Windows, Linux, SteamOS and macOS)
+ Battle Marine for Steam (Windows, Linux, SteamOS and macOS)
 
-Copyright (C) 2024, SUZUKIPLAN
-Porgrammed by Yoji Suzuki https://github.com/suzukiplan
+ Copyright (C) 2024, SUZUKIPLAN.
+ Porgrammed by Yoji Suzuki https://github.com/suzukiplan
 ================================================================================
 
 Thank you for purchasing the Battle Marine for Steam.
 This document describes how to play this game and other information, so please read it before playing.
 
-Description
+--------------------------------------------------------------------------------
+ Description
+--------------------------------------------------------------------------------
 
 Battle Marine is a simple naval barrage STG.
 Enjoy a somewhat retro yet new and exhilarating game experience by firing a barrage of shots, inducing explosions, sweeping with powerful lasers, and automatically collecting medals (recovery and score) by jumping.
 Destroying enemies consecutively within a certain time frame will result in a HIT combo. Aim for 999 HITs!
 Your rank will be assessed according to the results of your play. Aim for the rank of FLEET ADMIRAL!
 
-Controls
+--------------------------------------------------------------------------------
+ Controls
+--------------------------------------------------------------------------------
 
 - This game can be played with a gamepad or keyboard.
 - Gamepad's button assignments can be freely customized in the SteamInput menu.
 - Keyboard's assignments can be freely customized by the UI (Windows) or config.json (Linux/macOS)
 
-Keyboard Controls (Windows)
+--------------------------------------------------------------------------------
+ Keyboard Controls (Windows)
+--------------------------------------------------------------------------------
 
 - Cursor key: D-Pad
 - X key: Jump
@@ -36,7 +42,9 @@ Keyboard Controls (Windows)
 - CTRL+S: Screen Resolution Settings
 - CTRL+K: Key configuration for the Keyboard
 
-Keyboard Controls (Linux/macOS)
+--------------------------------------------------------------------------------
+ Keyboard Controls (Linux/macOS)
+--------------------------------------------------------------------------------
 
 - Cursor key: D-Pad
 - X key: Jump
@@ -46,7 +54,9 @@ Keyboard Controls (Linux/macOS)
 - R: Reset
 - Q: Exit the game
 
-Notes on the Linux/macOS version
+--------------------------------------------------------------------------------
+ Notes on the Linux/macOS version
+--------------------------------------------------------------------------------
 
 When you launch Battle Marine, a configuration file called config.json will be generated.
 The config.json file is saved under the directory opened by opening the Battle Marine page in the Steam client and selecting "Settings Icon" > "Manage" > "Browse local files".
@@ -72,7 +82,9 @@ You can customize the following items:
 NOTE: The keycode specifies the SDL keycode.
 https://wiki.libsdl.org/SDL2/SDLKeycodeLookup
 
-How to Play
+--------------------------------------------------------------------------------
+ How to Play
+--------------------------------------------------------------------------------
 
 - When you destroy an enemy, a green or red medal will appear.
 - Taking the green medal will restore your LIFE.
@@ -88,7 +100,9 @@ How to Play
 - With the exception of some enemies (crabs), red medals will appear when enemies are killed by lasers.
 - Obtaining a medal also resets the combo duration to 120 frames
 
-Try it for FREE
+--------------------------------------------------------------------------------
+ Try it for FREE
+--------------------------------------------------------------------------------
 
 The Steam version of Battle Marine is only available for a fee,
 but if you have a Raspberry Pi Zero 2W you can try the Raspberry Pi version for FREE.
@@ -97,24 +111,32 @@ https://github.com/suzukiplan/bmarine-zero
 
 > We have a policy of NOT ISSUING ANY FREE KEYS for Steam since we are giving away the RasPi version for FREE.
 
-Video distribution, etc.
+--------------------------------------------------------------------------------
+ Video distribution, etc.
+--------------------------------------------------------------------------------
 
 There are no restrictions on the distribution of this game on TV, YouTube, or other video distribution sites.
 Of course, there are no restrictions on monetization.
 There is no need to contact the author prior to or after the event.
 Similarly, there are no restrictions on publishing screenshots in magazines, web media, social media, etc.
 
-Video Reviews
+--------------------------------------------------------------------------------
+ Video Reviews
+--------------------------------------------------------------------------------
 
 ShmupsBR Drops: Março de 2024
 https://www.youtube.com/watch?v=Gxn_P_2ZRWs
 
-Contact us
+--------------------------------------------------------------------------------
+ Contact us
+--------------------------------------------------------------------------------
 
 1. Twitter: https://twitter.com/suzukiplan
 2. GitHub: https://github.com/suzukiplan/bmarine-zero/issues
 
-Licenses
+--------------------------------------------------------------------------------
+ Licenses
+--------------------------------------------------------------------------------
 
 This product uses the following Open Source Software:
 
