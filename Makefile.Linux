@@ -8,6 +8,7 @@ CFLAGS += -I/opt/X11/include
 CFLAGS += -I./sdk/public
 CFLAGS += -D_THREAD_SAFE
 CFLAGS += -DLINUX
+CFLAGS += `sdl2-config --cflags`
 CC = gcc $(CFLAGS)
 
 CPPFLAGS = -std=c++17
@@ -24,15 +25,12 @@ CPPFLAGS += -DZ80_NO_FUNCTIONAL
 CPPFLAGS += -DZ80_NO_EXCEPTION
 CPP = g++ $(CPPFLAGS)
 
-HEADER_FILES = ./vgszero/src/core/*.hpp
-HEADER_FILES += ./vgszero/src/core/*.h
-HEADER_FILES += ./src/*.h
-
-OBJECTS = sdlmain.o
-OBJECTS += vgstone.o
-OBJECTS += vgs0math.o
-OBJECTS += gamepkg.o
-OBJECTS += err_joypad.o
+DEPENDCIES = ./src/*.c
+DEPENDCIES += ./src/*.h
+DEPENDCIES += ./src/*.cpp
+DEPENDCIES += ./src/*.hpp
+DEPENDCIES += ./vgszero/src/core/*.hpp
+DEPENDCIES += ./vgszero/src/core/*.h
 
 all: $(EXENAME) steam_appid.txt libsteam_api.so
 	-@rm -rf release
@@ -50,20 +48,9 @@ clean:
 libsteam_api.so: ./sdk/redistributable_bin/linux64/libsteam_api.so
 	cp -p $< .
 
-$(EXENAME): $(OBJECTS) libsteam_api.so
-	$(CPP) -o $(EXENAME) $(OBJECTS) -Wl,-rpath,. -lSDL2 -L. -lsteam_api
-
-sdlmain.o: ./src/sdlmain.cpp $(HEADER_FILES) ./Makefile.Linux
-	$(CPP) -c $<
-
-vgstone.o: ./vgszero/src/core/vgstone.c
-	$(CC) -c $<
-
-vgs0math.o: ./vgszero/src/core/vgs0math.c
-	$(CC) -c $<
-
-gamepkg.o: ./src/gamepkg.c
-	$(CC) -c $<
-
-err_joypad.o: ./src/err_joypad.c
-	$(CC) -c $<
+$(EXENAME): $(DEPENDCIES) libsteam_api.so Makefile.Linux
+	$(CC) -c ./src/gamepkg.c
+	$(CC) -c ./src/err_joypad.c
+	$(CC) -c ./vgszero/src/core/vgstone.c
+	$(CC) -c ./vgszero/src/core/vgs0math.c
+	$(CPP) ./src/sdlmain.cpp -o $@ gamepkg.o err_joypad.o vgstone.o vgs0math.o -Wl,-rpath,. `sdl2-config --static-libs` -L. -lsteam_api
